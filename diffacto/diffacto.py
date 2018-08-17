@@ -639,7 +639,7 @@ def main():
 
         if args.loadings_out is not None:
             for pep, pepLoading in zip(peps, loading):
-                print(pep, pepLoading, sep="\t", file = loadings_out_file)
+                print(prot, pep, pepLoading, sep="\t", file = loadings_out_file)
         
         sn = 10 * np.log10((1 - noise) / noise)
         qc = loading > args.cutoff_weight
