@@ -412,7 +412,7 @@ def main():
     import sys
 
     DEBUG = False
-    SUMMARIZE_EACH_RUN = False
+    SUMMARIZE_EACH_RUN = True
     TOPN = 3
     T_PQPQ = 0.4
     EXAMPLE = 'HUMAN'
@@ -495,6 +495,8 @@ def main():
     apars.add_argument('-mc_out', default=None,
                        help='Path to MCFDR output (writing in TSV format).')
 
+    apars.add_argument('-loadings_out', default=None,
+                       help='File for peptide loadings (writing in TSV format).')
     # ------------------------------------------------
     args = apars.parse_args()
 
@@ -581,6 +583,8 @@ def main():
     if args.use_unique:
         df = df[[len(pep2prot[p]) == 1 for p in df.index]]
 
+    if args.loadings_out is not None:
+        loadings_out_file = open(args.loadings_out, 'w')
     # -------------------------------------------------------------------------
     # perform differential analysis
     output_header = ['Protein', 'N.Pept', 'Q.Pept', 'S/N', 'P(PECA)']
@@ -633,6 +637,10 @@ def main():
         else:
             continue
 
+        if args.loadings_out is not None:
+            for pep, pepLoading in zip(peps, loading):
+                print(pep, pepLoading, sep="\t", file = loadings_out_file)
+        
         sn = 10 * np.log10((1 - noise) / noise)
         qc = loading > args.cutoff_weight
         abd_qc = mv_impute(pep_abd[qc], sampIx,
