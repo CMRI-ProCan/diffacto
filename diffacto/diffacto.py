@@ -168,6 +168,19 @@ def weighted_average(weights, pep_abd, group_ix):
         expr[i] = a_sums[group_ix[i]].sum() / w_sums[group_ix[i]].sum()
     return expr
 
+def weighted_average_dont_average(weights, pep_abd):
+    '''
+    Calculate weighted geometric means for sample groups
+    Inputs:
+        weights:    weights of peptides after filtering by loading threshold
+        pep_abd:    peptide abundances after filtering by loading threshold
+    '''
+    abd_w = pep_abd * weights[..., None]
+    one_w = abd_w / abd_w * weights[..., None]
+    a_sums = np.nansum(abd_w, axis=0)
+    w_sums = np.nansum(one_w, axis=0)
+    expr = a_sums / w_sums
+    return expr
 
 def peptide_db_graph(peps, db, id_regex=None):
     ''' search a set of peptides against a FASTA database  '''
@@ -412,12 +425,12 @@ def main():
     import sys
 
     DEBUG = False
-    SUMMARIZE_EACH_RUN = True
+    SUMMARIZE_EACH_RUN = False
     TOPN = 3
     T_PQPQ = 0.4
     EXAMPLE = 'HUMAN'
 
-    MC_SIMULATION = True
+    MC_SIMULATION = False
     MC_MAX_N = 200000
     MC_BATCH_SIZE = 100
     MC_MAX_HIT = MC_MAX_N / 1000
@@ -497,6 +510,9 @@ def main():
 
     apars.add_argument('-loadings_out', default=None,
                        help='File for peptide loadings (writing in TSV format).')
+
+    apars.add_argument('-dont_average', default=False,
+                       help="Don't average technical replicates in output.")
     # ------------------------------------------------
     args = apars.parse_args()
 
@@ -588,7 +604,11 @@ def main():
     # -------------------------------------------------------------------------
     # perform differential analysis
     output_header = ['Protein', 'N.Pept', 'Q.Pept', 'S/N', 'P(PECA)']
-    output_header += group_names
+    if args.dont_average:
+         output_header += samples
+    else:
+         output_header += group_names
+
     if SUMMARIZE_EACH_RUN:
         output_header += ['P(Top-%d)' % TOPN, 'P(Median)', 'P(PQPQ)']
         output_header += ["Top-%d_%s" % (TOPN, s) for s in samples]
@@ -646,7 +666,11 @@ def main():
         abd_qc = mv_impute(pep_abd[qc], sampIx,
                            least_missing=args.impute_threshold,
                            impute_as=np.nanmin(pep_abd) - 1)
-        protein_summary_group = weighted_average(loading[qc], abd_qc, sampIx)
+
+        if args.dont_average:
+            protein_summary_group = weighted_average_dont_average(loading[qc], abd_qc)
+        else:
+            protein_summary_group = weighted_average(loading[qc], abd_qc, sampIx)
 
         if SUMMARIZE_EACH_RUN:
             with warnings.catch_warnings():
