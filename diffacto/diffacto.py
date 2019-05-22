@@ -412,7 +412,7 @@ def main():
     import sys
 
     DEBUG = False
-    SUMMARIZE_EACH_RUN = True
+    SUMMARIZE_EACH_RUN = False
     TOPN = 3
     T_PQPQ = 0.4
     EXAMPLE = 'HUMAN'
