@@ -169,6 +169,20 @@ def weighted_average(weights, pep_abd, group_ix):
         expr[i] = a_sums[group_ix[i]].sum() / w_sums[group_ix[i]].sum()
     return expr
 
+def weighted_average_dont_average(weights, pep_abd):
+    '''
+    Calculate weighted geometric means for sample groups
+    Inputs:
+        weights:    weights of peptides after filtering by loading threshold
+        pep_abd:    peptide abundances after filtering by loading threshold
+    '''
+    abd_w = pep_abd * weights[..., None]
+    one_w = abd_w / abd_w * weights[..., None]
+    a_sums = np.nansum(abd_w, axis=0)
+    w_sums = np.nansum(one_w, axis=0)
+    expr = a_sums / w_sums
+    return expr
+
 def _load_fasta(db, id_regex):
     global prot_dict
     prot_dict = dict()
@@ -423,7 +437,7 @@ def main():
     T_PQPQ = 0.4
     EXAMPLE = 'HUMAN'
 
-    MC_SIMULATION = True
+    MC_SIMULATION = False
     MC_MAX_N = 200000
     MC_BATCH_SIZE = 100
     MC_MAX_HIT = MC_MAX_N / 1000
@@ -501,6 +515,11 @@ def main():
     apars.add_argument('-mc_out', default=None,
                        help='Path to MCFDR output (writing in TSV format).')
 
+    apars.add_argument('-loadings_out', default=None,
+                       help='File for peptide loadings (writing in TSV format).')
+
+    apars.add_argument('-dont_average', default=False,
+                       help="Don't average technical replicates in output.")
     # ------------------------------------------------
     args = apars.parse_args()
 
@@ -587,10 +606,16 @@ def main():
     if args.use_unique:
         df = df[[len(pep2prot[p]) == 1 for p in df.index]]
 
+    if args.loadings_out is not None:
+        loadings_out_file = open(args.loadings_out, 'w')
     # -------------------------------------------------------------------------
     # perform differential analysis
     output_header = ['Protein', 'N.Pept', 'Q.Pept', 'S/N', 'P(PECA)']
-    output_header += group_names
+    if args.dont_average:
+         output_header += samples
+    else:
+         output_header += group_names
+
     if SUMMARIZE_EACH_RUN:
         output_header += ['P(Top-%d)' % TOPN, 'P(Median)', 'P(PQPQ)']
         output_header += ["Top-%d_%s" % (TOPN, s) for s in samples]
@@ -639,12 +664,20 @@ def main():
         else:
             continue
 
+        if args.loadings_out is not None:
+            for pep, pepLoading in zip(peps, loading):
+                print(prot, pep, pepLoading, sep="\t", file = loadings_out_file)
+        
         sn = 10 * np.log10((1 - noise) / noise)
         qc = loading > args.cutoff_weight
         abd_qc = mv_impute(pep_abd[qc], sampIx,
                            least_missing=args.impute_threshold,
                            impute_as=np.nanmin(pep_abd) - 1)
-        protein_summary_group = weighted_average(loading[qc], abd_qc, sampIx)
+
+        if args.dont_average:
+            protein_summary_group = weighted_average_dont_average(loading[qc], abd_qc)
+        else:
+            protein_summary_group = weighted_average(loading[qc], abd_qc, sampIx)
 
         if SUMMARIZE_EACH_RUN:
             with warnings.catch_warnings():
