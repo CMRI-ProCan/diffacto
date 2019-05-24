@@ -654,7 +654,6 @@ def main():
         if pep_count == 1:  # single peptide group
             loading = array([1 for _ in dx.index])
             noise = 1.0
-            continue  # do not report
         elif pep_count > 1:
             loading, noise = fast_farms(pep_abd,
                                         mu=args.farms_mu,
