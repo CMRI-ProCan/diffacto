@@ -223,7 +223,7 @@ def weighted_average_dont_average(weights, pep_abd):
     w_sums = np.nansum(one_w, axis=0)
     expr = a_sums / w_sums
     return expr
-=======
+
 def _init_pool(the_dict):
         global prot_dict
         prot_dict = the_dict
